@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#130f0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tesoro del Drago">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head><body>
+<title>Il Tesoro del Drago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700&family=Alegreya+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: la grotta (canvas cliccabile) a sinistra, il registro delle razzie a destra; su telefono si impilano. Un solo tema scuro: siamo in una caverna. */
+:root{
+  --bg:#130f0c;
+  --rock:#1f1813;
+  --rock-2:#2a211a;
+  --line:#3d3027;
+  --fg:#f0e4cf;
+  --muted:#a8957c;
+  --gold:#f0b232;
+  --gold-hi:#ffe08a;
+  --gold-deep:#8a5a12;
+  --ember:#e5582c;
+  --gem:#52c7a5;
+  --display:"Grenze Gotisch", "UnifrakturMaguntia", Georgia, serif;
+  --body:"Alegreya Sans", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--body);font-size:16px;line-height:1.4;padding-inline:16px;padding-block:16px 40px}
+button{font:inherit;color:inherit}
+body{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.cave,.item,.tab,.hud,.buymode{-webkit-user-select:none;user-select:none}
+.cave-btn{touch-action:none}
+:focus-visible{outline:2px solid var(--gold-hi);outline-offset:2px}
+
+.app{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.app{grid-template-columns:minmax(0,1fr)}}
+
+.titlerow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button{background:none;border:none;padding:4px 10px;font-weight:800;font-size:.8rem;color:var(--muted);cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--gold);color:#1a1006}
+header.top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(2rem,5vw,3.1rem);line-height:1;margin:0;color:var(--gold);letter-spacing:.01em;text-wrap:balance;text-shadow:0 0 24px rgba(240,178,50,.25)}
+.tagline{margin:0;color:var(--muted);font-size:.95rem;max-width:46ch}
+
+.left{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.hud{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 28px}
+.hud .main{min-width:0}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.big{font-family:var(--body);font-weight:800;font-size:clamp(1.9rem,4.4vw,2.7rem);line-height:1.05;color:var(--gold-hi);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.tailhud{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.big small{font-size:.5em;font-weight:500;color:var(--muted)}
+.sub{font-weight:700;font-size:1.15rem;font-variant-numeric:tabular-nums}
+
+.cave{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#0b0807;height:440px;max-width:100%}
+@media (max-width:860px){.cave{height:330px}}
+.cave-btn{all:unset;display:block;width:100%;height:100%;cursor:pointer;position:relative}
+.cave-btn:focus-visible{outline:2px solid var(--gold-hi);outline-offset:-4px}
+.cave canvas{display:block;width:100%;height:100%}
+.hint{position:absolute;left:14px;top:12px;font-size:.85rem;color:var(--muted);pointer-events:none;transition:opacity .6s}
+.buffs{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none}
+.buff{background:rgba(229,88,44,.18);border:1px solid var(--ember);color:var(--fg);padding:3px 10px;border-radius:999px;font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}
+.float{position:absolute;pointer-events:none;font-weight:800;color:var(--gold-hi);text-shadow:0 2px 6px #000;font-variant-numeric:tabular-nums;animation:rise 1s ease-out forwards;white-space:nowrap}
+.float.gem{color:var(--gem)}
+.float.relic,.relictxt{color:#c9a8ff}
+.item.artitem .cost{color:#c9a8ff}
+.item.artitem.can{border-color:rgba(201,168,255,.6);background:linear-gradient(90deg,rgba(201,168,255,.1),transparent 70%),var(--rock-2)}
+.item.artitem.owned{cursor:default;border-color:rgba(201,168,255,.35)}
+.item.artitem.owned .name::after{content:" ✓";color:#c9a8ff}
+.float.tail{font-size:.8rem;color:#ffcf7a;opacity:.9}
+.gemtxt{color:var(--gem)}
+.item.gemitem .count,.item.gemitem .cost{color:var(--gem)}
+.item.gemitem.can{border-color:rgba(82,199,165,.6);background:linear-gradient(90deg,rgba(82,199,165,.1),transparent 70%),var(--rock-2)}
+.gemintro{margin:0 0 4px;color:var(--muted);font-size:.9rem}
+.powers{display:flex;flex-direction:column;gap:8px}
+.terror{display:flex;align-items:center;gap:10px}
+.tbar{flex:1;height:10px;border-radius:999px;background:var(--rock-2);border:1px solid var(--line);overflow:hidden}
+.tbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7a1e10,var(--ember))}
+.ttxt{font-weight:700;font-variant-numeric:tabular-nums;font-size:.9rem;min-width:7ch;text-align:right}
+.pbtns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.power{background:var(--rock-2);border:1px solid var(--ember);border-radius:10px;padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;text-align:center}
+.power b{font-size:.95rem}
+.power small{font-size:.72rem;color:var(--muted);line-height:1.2}
+.power:disabled{border-color:var(--line);opacity:.5;cursor:not-allowed}
+.power:not(:disabled):hover{background:rgba(229,88,44,.15)}
+@keyframes rise{from{transform:translate(-50%,0);opacity:1}to{transform:translate(-50%,-70px);opacity:0}}
+
+.knight{position:absolute;width:64px;height:76px;border:none;background:none;padding:0;cursor:pointer;animation:knightIn .5s ease-out, bob 1.6s ease-in-out .5s infinite;filter:drop-shadow(0 0 10px rgba(255,224,138,.7))}
+.knight svg{width:100%;height:100%}
+.knight span{position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);font-size:.72rem;font-weight:800;color:var(--gold-hi);white-space:nowrap;text-shadow:0 1px 4px #000}
+@keyframes knightIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes bob{50%{transform:translateY(-6px)}}
+
+.world{display:flex;flex-direction:column;gap:6px}
+.world-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.bar{height:14px;border-radius:999px;background:var(--rock-2);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold-deep),var(--gold),var(--gold-hi));transition:width .4s}
+.world p{margin:0;color:var(--muted);font-size:.85rem;max-width:70ch}
+.pct{font-weight:800;color:var(--gold-hi);font-variant-numeric:tabular-nums}
+
+.shop{background:var(--rock);border:1px solid var(--line);border-radius:14px;min-width:0;display:flex;flex-direction:column}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:none;padding:12px 4px;white-space:nowrap;font-size:clamp(.72rem,3.2vw,1rem);font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;position:relative}
+.tab[aria-selected="true"]{color:var(--gold-hi);border-bottom-color:var(--gold)}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ember);margin-left:6px;vertical-align:middle}
+.panel{padding:12px;display:flex;flex-direction:column;gap:8px}
+.buymode{display:flex;gap:6px;align-items:center;justify-content:flex-end;font-size:.85rem;color:var(--muted)}
+.buymode button{background:var(--rock-2);border:1px solid var(--line);border-radius:6px;padding:3px 10px;cursor:pointer;font-weight:700}
+.buymode button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold-hi)}
+
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;text-align:left;background:var(--rock-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;width:100%;transition:border-color .15s, background .15s}
+.item:hover:not(:disabled){border-color:var(--gold)}
+.item:disabled{cursor:not-allowed;opacity:.5}
+.item.can{border-color:rgba(240,178,50,.55);background:linear-gradient(90deg,rgba(240,178,50,.08),transparent 70%),var(--rock-2)}
+.item .name{font-weight:800;font-size:1.02rem}
+.item .count{font-family:var(--display);font-size:1.7rem;line-height:1;color:var(--gold);grid-row:1/3;grid-column:2;align-self:center;font-variant-numeric:tabular-nums;text-align:right;min-width:2ch}
+.item .desc{font-size:.85rem;color:var(--muted);grid-column:1}
+.item .meta{grid-column:1/-1;display:flex;gap:6px 14px;flex-wrap:wrap;font-size:.85rem;font-variant-numeric:tabular-nums;margin-top:4px}
+.cost{font-weight:800;color:var(--gold-hi)}
+.item:disabled .cost{color:var(--muted)}
+.item.locked .name{color:var(--muted)}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 2px;margin:0}
+.owned-ups{display:flex;flex-wrap:wrap;gap:6px}
+.owned-ups span{font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+h3{font-family:var(--display);font-weight:500;color:var(--gold);font-size:1.4rem;margin:8px 0 0}
+
+.sleep p{margin:0;color:var(--muted);max-width:60ch}
+.sleep .stat{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line);padding:6px 0;font-variant-numeric:tabular-nums}
+.sleep .stat b{color:var(--gold-hi)}
+.btn{background:var(--gold);color:#1a1006;border:none;border-radius:10px;padding:12px 16px;font-weight:800;cursor:pointer;font-size:1rem}
+.btn:disabled{background:var(--rock-2);color:var(--muted);cursor:not-allowed}
+.btn.warn{background:var(--ember);color:#fff}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--muted);font-weight:700;font-size:.85rem;padding:8px 12px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--rock-2);border:1px solid var(--gold);color:var(--fg);padding:10px 16px;border-radius:10px;max-width:min(92vw,460px);box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:10;font-weight:500}
+
+.modal{position:fixed;inset:0;background:rgba(5,3,2,.8);display:grid;place-items:center;padding:16px;z-index:20}
+.modal .card{background:var(--rock);border:1px solid var(--gold);border-radius:16px;padding:24px;max-width:460px;display:flex;flex-direction:column;gap:12px}
+.modal h2{font-family:var(--display);color:var(--gold-hi);font-size:2rem;margin:0;line-height:1.05;text-wrap:balance}
+.modal p{margin:0;color:var(--fg)}
+
+footer{grid-column:1/-1;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--muted);font-size:.8rem}
+
+/* Telefono: una sola schermata. Grotta in alto, registro che scorre sotto, schede in basso a portata di pollice. */
+@media (max-width:860px){
+  html,body{height:100%}
+  body{overflow:hidden;padding-block:8px 0}
+  .app{height:100%;grid-template-rows:auto auto minmax(0,1fr);gap:8px}
+  .tagline,footer,.world-note{display:none}
+  h1{font-size:1.6rem}
+  .titlerow{width:100%;justify-content:space-between}
+  .left{gap:8px}
+  .hud{flex-wrap:nowrap;justify-content:space-between;gap:10px}
+  .big{font-size:1.7rem}
+  .sub{font-size:1rem}
+  .cave{height:clamp(150px,27vh,300px)}
+  .hud .label{font-size:.62rem;letter-spacing:.08em}
+  .power{padding:6px 4px}
+  .power small{display:none}
+  .gemintro{font-size:.82rem}
+  .world{gap:4px}
+  .shop{height:100%;min-height:0;border-radius:14px 14px 0 0;border-bottom:none}
+  .tabs{order:2;border-bottom:none;border-top:1px solid var(--line)}
+  .tab{border-bottom:none;border-top:3px solid transparent;padding:14px 4px}
+  .tab[aria-selected="true"]{border-top-color:var(--gold)}
+  .panel{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:16px}
+  .item{padding:12px}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion:reduce){
+  .knight{animation:none}
+  .float{animation-duration:.01s}
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="titlerow">
+      <h1 data-i18n="title">Il Tesoro del Drago</h1>
+      <div class="lang" role="group" aria-label="Lingua / Language">
+        <button type="button" data-lang="it" aria-pressed="true">IT</button>
+        <button type="button" data-lang="en" aria-pressed="false">EN</button>
+      </div>
+    </div>
+    <p class="tagline" data-i18n="tagline">Tutto l'oro del mondo, un ducato alla volta. Tocca il tesoro per arraffare, poi manda i tuoi servitori a razziare.</p>
+  </header>
+
+  <section class="left" aria-label="La grotta">
+    <div class="hud">
+      <div class="main">
+        <div class="label" data-i18n="lbl_gold">Ducati nella grotta</div>
+        <div class="big" id="gold">0</div>
+      </div>
+      <div>
+        <div class="label" data-i18n="lbl_gps">Al secondo</div>
+        <div class="sub" id="gps">0</div>
+        <div class="tailhud" id="tailHud" hidden></div>
+      </div>
+      <div>
+        <div class="label" data-i18n="lbl_gpc">Per zampata</div>
+        <div class="sub" id="gpc">1</div>
+      </div>
+      <div>
+        <div class="label" data-i18n="lbl_gems">Gemme</div>
+        <div class="sub gemtxt" id="gemsHud">0</div>
+        <div class="tailhud relictxt" id="relicHud"></div>
+      </div>
+    </div>
+
+    <div class="cave" id="cave">
+      <button class="cave-btn" id="hoard" aria-label="Arraffa oro dal mucchio" data-i18n-aria="hoard_aria"><canvas id="canvas"></canvas></button>
+      <div class="hint" id="hint" data-i18n="hint">Tocca il tesoro per arraffare ducati</div>
+      <div class="buffs" id="buffs"></div>
+    </div>
+
+    <div class="powers" aria-label="Poteri del drago">
+      <div class="terror">
+        <span class="label" data-i18n="lbl_terror">Terrore</span>
+        <div class="tbar"><i id="terrorFill"></i></div>
+        <span class="ttxt" id="terrorTxt">0 / 100</span>
+      </div>
+      <div class="pbtns" id="powerBtns"></div>
+    </div>
+
+    <div class="world">
+      <div class="world-row">
+        <span class="label" data-i18n="lbl_world">Oro del mondo nella tua grotta</span>
+        <span class="pct" id="pct">0%</span>
+      </div>
+      <div class="bar" role="progressbar" aria-label="Oro del mondo raccolto" aria-valuemin="0" aria-valuemax="100" id="bar"><i id="barFill"></i></div>
+      <p class="world-note" data-i18n-html="world_note">Nella storia sono state estratte circa 212.000 tonnellate d'oro. In ducati veneziani da 3,5 grammi fanno circa <b>60 bilioni</b>. Il drago li vuole tutti. Accumulati finora: <b id="hoardTotal">0</b>.</p>
+    </div>
+  </section>
+
+  <aside class="shop" aria-label="Razzie e potenziamenti">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-gens" aria-selected="true" aria-controls="p-gens"><span data-i18n="tab_gens">Razzie</span></button>
+      <button class="tab" role="tab" id="tab-ups" aria-selected="false" aria-controls="p-ups"><span data-i18n="tab_ups">Migliorie</span><span class="dot" id="upDot" hidden></span></button>
+      <button class="tab" role="tab" id="tab-gems" aria-selected="false" aria-controls="p-gems"><span data-i18n="tab_gems">Gemme</span><span class="dot" id="gemDot" hidden></span></button>
+      <button class="tab" role="tab" id="tab-relics" aria-selected="false" aria-controls="p-relics"><span data-i18n="tab_relics">Reliquie</span><span class="dot" id="relicDot" hidden></span></button>
+      <button class="tab" role="tab" id="tab-sleep" aria-selected="false" aria-controls="p-sleep"><span data-i18n="tab_sleep">Letargo</span><span class="dot" id="sleepDot" hidden></span></button>
+    </div>
+    <div class="panel" id="p-gens" role="tabpanel">
+      <div class="buymode" role="group" aria-label="Quantità da comprare">
+        <span data-i18n="buy">Compra</span>
+        <button data-mode="1" aria-pressed="true">×1</button>
+        <button data-mode="10" aria-pressed="false">×10</button>
+        <button data-mode="max" aria-pressed="false">Max</button>
+      </div>
+      <div id="genList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="panel" id="p-ups" role="tabpanel" hidden>
+      <div id="upList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <h3 data-i18n="owned_ups">Già tuoi</h3>
+      <div class="owned-ups" id="ownedUps"></div>
+    </div>
+    <div class="panel" id="p-gems" role="tabpanel" hidden>
+      <p class="gemintro" data-i18n-html="gem_intro">Gemme nella grotta: <b class="gemtxt" id="gemHave">0</b>. Le trovi a ogni zampata, sui cavalieri e nelle miniere dei nani e nelle città leggendarie. Questi potenziamenti restano anche dopo il letargo.</p>
+      <div id="gemList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="panel" id="p-relics" role="tabpanel" hidden>
+      <p class="gemintro" data-i18n-html="relic_intro">Reliquie nella grotta: <b class="relictxt" id="relicHave">0</b>. Ne trovi una ogni 25 esemplari di una stessa razzia, e i cavalieri a volte ne lasciano una. Ogni artefatto si compra una volta sola e resta anche dopo il letargo.</p>
+      <div id="artList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="panel sleep" id="p-sleep" role="tabpanel" hidden>
+      <p data-i18n-html="sleep_intro">Il drago può addormentarsi per un secolo. Al risveglio servitori, migliorie e ducati spendibili saranno spariti, ma l'oro accumulato, le gemme, le reliquie e i loro potenziamenti restano tuoi e la sua leggenda sarà cresciuta. Ogni punto Leggenda dà <b>+10% di produzione</b> per sempre.</p>
+      <div class="stat"><span data-i18n="st_legend">Leggenda attuale</span><b id="legendNow">0</b></div>
+      <div class="stat"><span data-i18n="st_bonus">Bonus attuale</span><b id="legendBonus">+0%</b></div>
+      <div class="stat"><span data-i18n="st_gain">Leggenda in più al risveglio</span><b id="legendGain">0</b></div>
+      <div class="stat"><span data-i18n="st_next">Per il prossimo punto servono</span><b id="legendNext">0</b></div>
+      <button class="btn" id="sleepBtn" disabled>Dormi un secolo</button>
+      <h3 data-i18n="ledger">Il libro del drago</h3>
+      <div class="stat"><span data-i18n="st_clicks">Zampate date</span><b id="stClicks">0</b></div>
+      <div class="stat"><span data-i18n="st_knights">Cavalieri arrostiti</span><b id="stKnights">0</b></div>
+      <div class="stat"><span data-i18n="st_sleeps">Secoli dormiti</span><b id="stSleeps">0</b></div>
+      <button class="btn ghost" id="resetBtn">Ricomincia da zero</button>
+    </div>
+  </aside>
+
+  <footer>
+    <span data-i18n="autosave">La partita si salva da sola in questo browser.</span>
+    <span id="saved"></span>
+  </footer>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<div class="modal" id="modal" hidden><div class="card"><h2 id="mTitle"></h2><p id="mText"></p><button class="btn" id="mBtn">Continua</button></div></div>
+
+<script>
+(function(){
+'use strict';
+/* ---------- lingue ---------- */
+const TX = {
+ it:{
+  title:'Il Tesoro del Drago',
+  tagline:"Tutto l'oro del mondo, un ducato alla volta. Tocca il tesoro per arraffare, poi manda i tuoi servitori a razziare.",
+  lbl_gold:'Ducati nella grotta', lbl_gps:'Al secondo', lbl_gpc:'Per zampata', lbl_gems:'Gemme', lbl_terror:'Terrore',
+  hoard_aria:'Arraffa oro dal mucchio', hint:'Tocca il tesoro per arraffare ducati',
+  lbl_world:'Oro del mondo nella tua grotta',
+  world_note:"Nella storia sono state estratte circa 212.000 tonnellate d'oro. In ducati veneziani da 3,5 grammi fanno circa <b>60 bilioni</b>. Il drago li vuole tutti. Accumulati finora: <b id=\"hoardTotal\">0</b>.",
+  tab_gens:'Razzie', tab_ups:'Migliorie', tab_gems:'Gemme', tab_relics:'Reliquie', tab_sleep:'Letargo',
+  buy:'Compra', owned_ups:'Già tuoi',
+  gem_intro:'Gemme nella grotta: <b class="gemtxt" id="gemHave">0</b>. Le trovi a ogni zampata, sui cavalieri e nelle miniere dei nani e nelle città leggendarie. Questi potenziamenti restano anche dopo il letargo.',
+  relic_intro:'Reliquie nella grotta: <b class="relictxt" id="relicHave">0</b>. Ne trovi una ogni 25 esemplari di una stessa razzia, e i cavalieri a volte ne lasciano una. Ogni artefatto si compra una volta sola e resta anche dopo il letargo.',
+  sleep_intro:"Il drago può addormentarsi per un secolo. Al risveglio servitori, migliorie e ducati spendibili saranno spariti, ma l'oro accumulato, le gemme, le reliquie e i loro potenziamenti restano tuoi e la sua leggenda sarà cresciuta. Ogni punto Leggenda dà <b>+10% di produzione</b> per sempre.",
+  st_legend:'Leggenda attuale', st_bonus:'Bonus attuale', st_gain:'Leggenda in più al risveglio', st_next:'Per il prossimo punto servono',
+  ledger:'Il libro del drago', st_clicks:'Zampate date', st_knights:'Cavalieri arrostiti', st_sleeps:'Secoli dormiti',
+  autosave:'La partita si salva da sola in questo browser.',
+  ducats:'{0} ducati', ducats_for:'{0} ducati per {1}', each:'+{0}/s ciascuno', total:' · totale {0}/s',
+  locked_desc:'Accumula più oro per scoprire questa razzia.',
+  genx2:'{0}: produzione ×2',
+  no_ups:'Nessun potenziamento disponibile. Compra 10 esemplari di una razzia per sbloccarne uno.', none_yet:'Ancora nessuno',
+  auto_name:'Coda irrequieta',
+  auto_desc:'La coda del drago smuove il mucchio da sola: +1 codata al secondo. Ogni codata vale come una zampata ({0} ducati). Ora {1} codate al secondo = {2}/s, massimo {3}.',
+  tail_hud:'coda +{0}/s', relic_hud:'reliquie {0}',
+  max_level:'Livello massimo', gem1:'{0} gemma', gemN:'{0} gemme', in_cave:'Nella tua grotta', relic1:'{0} reliquia', relicN:'{0} reliquie',
+  f_gem1:'+1 gemma', f_gemN:'+{0} gemme', f_relic:'+1 reliquia', f_fury:'Furia!', f_flame:'Fiamma!',
+  buff_furia:'Furia ×7', buff_fiamma:'Zampate ×15', buff_soffio:'Soffio ×3',
+  t_roar:'Il ruggito arriva fino ai villaggi: +{0} ducati di tributo.',
+  t_challenge:'Un cavaliere ha raccolto la sfida. Toccalo prima che scappi.',
+  t_breath:'Soffio di fuoco: produzione ×3 per 45 secondi.',
+  t_relic1:'Con {0} {1} trovi una reliquia nel bottino.', t_relicN:'Con {0} {1} trovi {2} reliquie nel bottino.',
+  t_wake:'Il drago si risveglia dopo un secolo. Leggenda +{0}: ora produci il {1}% in più.',
+  knight_aria:'Un cavaliere sfida il drago: toccalo per arrostirlo', knight_label:'Un cavaliere!',
+  t_chest:'Il cavaliere scappa lasciando il suo forziere: +{0} ducati.',
+  t_fury:'Furia del drago: produzione ×7 per {0} secondi.',
+  t_flame:'Fiamma ardente: ogni zampata vale ×15 per {0} secondi.',
+  sleep_no:'Non sei ancora abbastanza leggendario', sleep_yes:'Dormi un secolo (+{0} Leggenda)', sleep_sure:'Sicuro? Tocca ancora per dormire',
+  reset:'Ricomincia da zero', reset_sure:'Tocca ancora per cancellare tutto', t_reset:'Partita cancellata. La grotta è di nuovo vuota.',
+  doc_title:'{0} ducati · Il Tesoro del Drago',
+  saved:'Salvato alle {0}', no_save:'Questo browser non permette di salvare la partita.',
+  back_title:'Bentornato, drago', back_text:'Mentre eri via ({0}) i tuoi servitori hanno portato nella grotta {1} ducati.', back_btn:'Al lavoro',
+  win_title:"Tutto l'oro del mondo", win_text:'La tua grotta custodisce ogni ducato mai coniato: {0} ducati. Il drago chiude gli occhi, soddisfatto. Per ora.', win_btn:'Continua ad accumulare',
+  cont:'Continua'
+ },
+ en:{
+  title:"The Dragon's Hoard",
+  tagline:'All the gold in the world, one ducat at a time. Tap the hoard to grab some, then send your minions raiding.',
+  lbl_gold:'Ducats in the cave', lbl_gps:'Per second', lbl_gpc:'Per swipe', lbl_gems:'Gems', lbl_terror:'Terror',
+  hoard_aria:'Grab gold from the hoard', hint:'Tap the hoard to grab ducats',
+  lbl_world:"The world's gold in your cave",
+  world_note:'About 212,000 tonnes of gold have been mined in all of history. In 3.5-gram Venetian ducats that is about <b>60 trillion</b>. The dragon wants every one. Hoarded so far: <b id="hoardTotal">0</b>.',
+  tab_gens:'Raids', tab_ups:'Upgrades', tab_gems:'Gems', tab_relics:'Relics', tab_sleep:'Slumber',
+  buy:'Buy', owned_ups:'Already yours',
+  gem_intro:'Gems in the cave: <b class="gemtxt" id="gemHave">0</b>. You find them with your swipes, on knights, in the dwarven mines and in the legendary cities. These upgrades stay with you after slumber.',
+  relic_intro:'Relics in the cave: <b class="relictxt" id="relicHave">0</b>. You find one for every 25 of the same raid, and knights sometimes leave one behind. Each artifact can be bought once and stays with you after slumber.',
+  sleep_intro:'The dragon can sleep for a century. On waking, minions, upgrades and spendable ducats will be gone, but the hoarded gold, gems, relics and their upgrades stay yours, and its legend will have grown. Each Legend point gives <b>+10% production</b> forever.',
+  st_legend:'Current Legend', st_bonus:'Current bonus', st_gain:'Legend gained on waking', st_next:'Needed for the next point',
+  ledger:"The dragon's ledger", st_clicks:'Swipes made', st_knights:'Knights roasted', st_sleeps:'Centuries slept',
+  autosave:'Your game saves itself in this browser.',
+  ducats:'{0} ducats', ducats_for:'{0} ducats for {1}', each:'+{0}/s each', total:' · total {0}/s',
+  locked_desc:'Gather more gold to discover this raid.',
+  genx2:'{0}: production ×2',
+  no_ups:'No upgrades available yet. Own 10 of a raid to unlock one.', none_yet:'None yet',
+  auto_name:'Restless tail',
+  auto_desc:"The dragon's tail stirs the hoard by itself: +1 tail swipe per second. Each one is worth a swipe ({0} ducats). Now {1} per second = {2}/s, max {3}.",
+  tail_hud:'tail +{0}/s', relic_hud:'relics {0}',
+  max_level:'Max level', gem1:'{0} gem', gemN:'{0} gems', in_cave:'In your cave', relic1:'{0} relic', relicN:'{0} relics',
+  f_gem1:'+1 gem', f_gemN:'+{0} gems', f_relic:'+1 relic', f_fury:'Fury!', f_flame:'Flame!',
+  buff_furia:'Fury ×7', buff_fiamma:'Swipes ×15', buff_soffio:'Breath ×3',
+  t_roar:'Your roar reaches the villages: +{0} ducats in tribute.',
+  t_challenge:'A knight has taken up the challenge. Tap them before they flee.',
+  t_breath:'Fire breath: production ×3 for 45 seconds.',
+  t_relic1:'With {0} {1} you find a relic in the loot.', t_relicN:'With {0} {1} you find {2} relics in the loot.',
+  t_wake:'The dragon wakes after a century. Legend +{0}: you now produce {1}% more.',
+  knight_aria:'A knight challenges the dragon: tap to roast', knight_label:'A knight!',
+  t_chest:'The knight flees and leaves a chest behind: +{0} ducats.',
+  t_fury:"Dragon's fury: production ×7 for {0} seconds.",
+  t_flame:'Blazing flame: every swipe is worth ×15 for {0} seconds.',
+  sleep_no:'Not legendary enough yet', sleep_yes:'Sleep for a century (+{0} Legend)', sleep_sure:'Sure? Tap again to sleep',
+  reset:'Start over', reset_sure:'Tap again to erase everything', t_reset:'Game erased. The cave is empty again.',
+  doc_title:"{0} ducats · The Dragon's Hoard",
+  saved:'Saved at {0}', no_save:'This browser does not allow saving the game.',
+  back_title:'Welcome back, dragon', back_text:'While you were away ({0}) your minions brought {1} ducats into the cave.', back_btn:'Back to work',
+  win_title:'All the gold in the world', win_text:'Your cave holds every ducat ever minted: {0} ducats. The dragon closes its eyes, satisfied. For now.', win_btn:'Keep hoarding',
+  cont:'Continue'
+ }
+};
+let L = 'it';
+function t(k,...a){const v=(TX[L]&&TX[L][k])??TX.it[k]??k;return v.replace(/\{(\d)\}/g,(_,i)=>a[i])}
+function LOC(){return L==='en'?'en-US':'it-IT'}
+function nm(o){return L==='en'&&o.nameEn?o.nameEn:o.name}
+function ds(o){const d=L==='en'&&o.descEn?o.descEn:o.desc;return d}
+const WORLD = 6.0e13; // ~212.000 t d'oro / 3,5 g a ducato
+const SAVE_KEY = 'tesoro-del-drago-v1';
+const $ = id => document.getElementById(id);
+
+const GENS = [
+  {name:'Coboldi servitori', desc:'Frugano nei cunicoli in cerca di monete perdute.', cost:15, prod:0.1,
+    ups:['Lanterne per coboldi','Picconi di bronzo','Gilda dei coboldi','Coboldi cartografi']},
+  {name:'Razzie ai villaggi', desc:'Un volo basso sopra i tetti di paglia e i forzieri si aprono da soli.', cost:100, prod:1,
+    ups:['Volo radente','Terrore nei borghi','Decima del drago','Feudi bruciati']},
+  {name:'Assalti alle carovane', desc:'Mercanti di spezie e seta pagano il pedaggio del cielo.', cost:1100, prod:9,
+    ups:['Strade sorvegliate','Pedaggio del cielo','Spie al mercato','La Via della Seta']},
+  {name:'Monasteri saccheggiati', desc:'Calici, reliquiari e candelabri finiscono nel mucchio.', cost:12000, prod:66,
+    ups:['Campane mute','Reliquiari dorati','Cripte segrete','Il tesoro del vescovo']},
+  {name:'Tributi dei re', desc:'Meglio pagare il drago che vederlo sopra le mura.', cost:130000, prod:460,
+    ups:['Ambasciatori tremanti','Corone in pegno','Tassa del drago','Re fantoccio']},
+  {name:'Miniere dei nani', desc:'Le gallerie sotto la montagna ora scavano per te.', cost:1.4e6, prod:3100,
+    ups:['Lingotti nanici','Gallerie profonde','Forge sotterranee','Il Re sotto la Montagna']},
+  {name:'Galeoni affondati', desc:'Il fondo del mare restituisce l\'oro delle flotte perdute.', cost:2e7, prod:28000,
+    ups:['Mappe dei naufragi','Basse maree','Flotte dell\'argento','Kraken alleato']},
+  {name:'Tesori degli imperi', desc:'Le casse imperiali traslocano, una dopo l\'altra.', cost:3.3e8, prod:300000,
+    ups:['Tesorieri corrotti','Sacco delle capitali','Zecche imperiali','La corona del mondo']},
+  {name:'Draghi vassalli', desc:'Draghi più giovani ti portano una parte di ogni bottino.', cost:5.1e9, prod:3e6,
+    ups:['Covata fedele','Patto di sangue','Stormo dorato','Concilio dei draghi']},
+  {name:'Città leggendarie', desc:'El Dorado, Ofir, Atlantide: trovate e svuotate.', cost:7.5e10, prod:2.9e7,
+    ups:['Mappe perdute','Le porte di Ofir','El Dorado','Atlantide']},
+];
+const GENS_EN = [
+  ['Kobold minions','They rummage through the tunnels for lost coins.',['Kobold lanterns','Bronze picks','Kobold guild','Kobold mapmakers']],
+  ['Village raids','One low pass over the thatched roofs and the chests open by themselves.',['Low flight','Terror in the hamlets',"The dragon's tithe",'Burned fiefs']],
+  ['Caravan ambushes','Spice and silk merchants pay the toll of the sky.',['Watched roads','Sky toll','Spies at the market','The Silk Road']],
+  ['Plundered monasteries','Chalices, reliquaries and candlesticks end up on the pile.',['Silent bells','Golden reliquaries','Secret crypts',"The bishop's treasure"]],
+  ['Tributes of kings','Better to pay the dragon than to see it over the walls.',['Trembling envoys','Pawned crowns','Dragon tax','Puppet kings']],
+  ['Dwarven mines','The tunnels under the mountain now dig for you.',['Dwarven ingots','Deep tunnels','Underground forges','The King under the Mountain']],
+  ['Sunken galleons','The seabed gives back the gold of lost fleets.',['Shipwreck charts','Low tides','Silver fleets','Kraken ally']],
+  ['Treasures of empires','The imperial coffers move house, one after another.',['Corrupt treasurers','Sack of the capitals','Imperial mints','The crown of the world']],
+  ['Vassal dragons','Younger dragons bring you a share of every haul.',['Loyal brood','Blood pact','Golden flight','Council of dragons']],
+  ['Legendary cities','El Dorado, Ophir, Atlantis: found and emptied.',['Lost maps','The gates of Ophir','El Dorado','Atlantis']],
+];
+GENS.forEach((g,i)=>{g.nameEn=GENS_EN[i][0];g.descEn=GENS_EN[i][1];g.upsEn=GENS_EN[i][2]});
+const TIERS = [10,25,50,100];
+const TIER_COST = [15,150,3000,2e6];
+
+const UPS = [];
+GENS.forEach((g,i)=>TIERS.forEach((t,k)=>UPS.push({
+  id:'g'+i+'_'+k, name:g.ups[k], nameEn:g.upsEn[k], cost:g.cost*TIER_COST[k],
+  unlock:s=>s.owned[i]>=t, need:'Serve: '+t+' × '+g.name, kind:'gen', gen:i
+})));
+[
+  {id:'c1', name:'Artigli affilati', desc:'Ogni zampata raccoglie il doppio.', cost:100, kind:'clickMult', v:2},
+  {id:'c2', name:'Zanne d\'acciaio', desc:'Ogni zampata raccoglie il doppio.', cost:5000, kind:'clickMult', v:2},
+  {id:'c3', name:'Soffio infuocato', desc:'Ogni zampata vale anche il 2% dei ducati al secondo.', cost:5e4, kind:'clickPct', v:.02},
+  {id:'c4', name:'Ira antica', desc:'Ogni zampata vale anche un altro 4% dei ducati al secondo.', cost:5e6, kind:'clickPct', v:.04},
+  {id:'c5', name:'Coda chiodata', desc:'Ogni zampata vale anche un altro 6% dei ducati al secondo.', cost:5e9, kind:'clickPct', v:.06},
+  {id:'w1', name:'Fiuto per l\'oro', desc:'Tutta la produzione +10%.', cost:2e5, kind:'global', v:1.1},
+  {id:'w2', name:'Occhio del drago', desc:'Tutta la produzione +25%.', cost:5e7, kind:'global', v:1.25},
+  {id:'w3', name:'Cuore d\'oro', desc:'Tutta la produzione +50%.', cost:2e10, kind:'global', v:1.5},
+  {id:'w4', name:'Avidità leggendaria', desc:'Tutta la produzione ×2.', cost:1e13, kind:'global', v:2},
+  {id:'k1', name:'Esca per cavalieri', desc:'I cavalieri arrivano il doppio delle volte.', cost:1e6, kind:'knight', v:2},
+  {id:'k2', name:'Fiamma che dura', desc:'Gli effetti dei cavalieri durano il doppio.', cost:1e9, kind:'knightLen', v:2},
+].forEach(u=>{u.unlock=s=>s.totalRun>=u.cost/4; u.need='Si sblocca più avanti'; UPS.push(u)});
+const UPS_EN = {
+  c1:['Sharpened claws','Every swipe grabs twice as much.'],
+  c2:['Steel fangs','Every swipe grabs twice as much.'],
+  c3:['Fiery breath','Each swipe is also worth 2% of your ducats per second.'],
+  c4:['Ancient wrath','Each swipe is also worth another 4% of your ducats per second.'],
+  c5:['Spiked tail','Each swipe is also worth another 6% of your ducats per second.'],
+  w1:['A nose for gold','All production +10%.'],
+  w2:["Dragon's eye",'All production +25%.'],
+  w3:['Heart of gold','All production +50%.'],
+  w4:['Legendary greed','All production ×2.'],
+  k1:['Knight bait','Knights show up twice as often.'],
+  k2:['Lasting flame','Knight effects last twice as long.'],
+};
+UPS.forEach(u=>{const e=UPS_EN[u.id];if(e){u.nameEn=e[0];u.descEn=e[1]}});
+function upDesc(u){return u.kind==='gen'?t('genx2',nm(GENS[u.gen])):ds(u)}
+const UP_BY_ID = Object.fromEntries(UPS.map(u=>[u.id,u]));
+
+// Gemme: potenziamenti a livelli che restano anche dopo il letargo
+const GEMUPS = [
+  {id:'brama', name:'Brama dell\'oro', nameEn:'Lust for gold', base:5, g:1.5, max:Infinity,
+    descEn:l=>'Ducat production +10% per level, compounding. Now ×'+fmtM(Math.pow(1.1,l))+'.',
+    desc:l=>'Produzione di ducati +10% a livello, composto. Ora ×'+fmtM(Math.pow(1.1,l))+'.'},
+  {id:'artigli', name:'Artigli gemmati', nameEn:'Jeweled claws', base:3, g:1.4, max:Infinity,
+    descEn:l=>'Gold per swipe +25% per level. Now +'+(l*25)+'%.',
+    desc:l=>'Oro per zampata +25% a livello. Ora +'+(l*25)+'%.'},
+  {id:'mercante', name:'Mercanteggiare', nameEn:'Haggling', base:8, g:1.6, max:15,
+    descEn:l=>'Raids cost 3% less per level. Now -'+Math.round((1-Math.pow(0.97,l))*100)+'%.',
+    desc:l=>'Le razzie costano il 3% in meno a livello. Ora -'+Math.round((1-Math.pow(0.97,l))*100)+'%.'},
+  {id:'occhio', name:'Occhio per le gemme', nameEn:'Eye for gems', base:10, g:1.7, max:16,
+    descEn:l=>'Chance to find a gem on each swipe +1%. Now '+Math.round(gemChance()*100)+'%.',
+    desc:l=>'Probabilità di trovare una gemma a ogni zampata +1%. Ora '+Math.round(gemChance()*100)+'%.'},
+  {id:'cuore', name:'Cuore di brace', nameEn:'Ember heart', base:6, g:1.6, max:10,
+    descEn:l=>'Terror grows 20% faster and you can hold 20 more. Now max '+terrorMax()+'.',
+    desc:l=>'Il Terrore cresce il 20% più in fretta e ne puoi tenere 20 in più. Ora massimo '+terrorMax()+'.'},
+];
+const POWERS = [
+  {id:'ruggito', name:'Ruggito', nameEn:'Roar', cost:50, desc:'60 s di produzione subito', descEn:'60 s of production now'},
+  {id:'sfida', name:'Sfida', nameEn:'Challenge', cost:40, desc:'Attira un cavaliere', descEn:'Lure a knight'},
+  {id:'soffio', name:'Soffio', nameEn:'Breath', cost:80, desc:'Produzione ×3 per 45 s', descEn:'Production ×3 for 45 s'},
+];
+// Reliquie: artefatti unici, ognuno con un effetto diverso, che restano dopo il letargo
+const ARTS = [
+  {id:'mida', nameEn:"King Midas's crown", descEn:"Knights' chests are worth double.", name:'Corona di re Mida', cost:3, desc:'I forzieri dei cavalieri valgono il doppio.'},
+  {id:'lancia', nameEn:'Broken lance', descEn:'Knights come 25% more often and stay twice as long before fleeing.', name:'Lancia spezzata', cost:5, desc:'I cavalieri arrivano il 25% più spesso e restano il doppio prima di scappare.'},
+  {id:'calice', nameEn:'Bottomless chalice', descEn:'Terror grows 50% faster.', name:'Calice senza fondo', cost:8, desc:'Il Terrore cresce il 50% più in fretta.'},
+  {id:'specchio', nameEn:'Mirror of Ophir', descEn:'Double the chance of finding gems.', name:'Specchio di Ofir', cost:12, desc:'Probabilità di trovare gemme raddoppiata.'},
+  {id:'clessidra', nameEn:'Hourglass of slumber', descEn:"While you're away you collect 100% of the gold instead of 50%.", name:'Clessidra del letargo', cost:16, desc:'Mentre sei via raccogli il 100% dell\'oro invece del 50%.'},
+  {id:'uovo', nameEn:'Golden dragon egg', descEn:'Each Legend point gives +15% instead of +10%.', name:'Uovo di drago d\'oro', cost:22, desc:'Ogni punto Leggenda vale +15% invece di +10%.'},
+  {id:'cuoremonte', nameEn:'Heart of the mountain', descEn:'All ducat production ×2.', name:'Cuore della montagna', cost:30, desc:'Tutta la produzione di ducati ×2.'},
+];
+function art(id){return !!(S.arts&&S.arts[id])}
+function legendPct(){return art('uovo')?0.15:0.1}
+const RELIC_STEP = 25;
+const AUTO_MAX = 10;
+function autoDesc(){return t('auto_desc',fmt(perClick()),S.auto,fmt(S.auto*perClick()),AUTO_MAX)}
+function autoCost(){return 500*Math.pow(4,S.auto)}
+
+function fresh(){
+  return {gold:0,totalRun:0,totalAll:0,owned:GENS.map(()=>0),ups:{},legend:0,clicks:0,knights:0,sleeps:0,
+    won:false,startedAt:Date.now(),lastTick:Date.now(),buyMode:'1',lang:null,
+    gems:0,gemLv:{},terror:0,auto:0,relics:0,arts:{},relicMs:[]};
+}
+let S = fresh();
+const buffs = []; // {kind:'prod'|'click', mult, until, label}
+let knight = null, nextKnightAt = 0;
+
+/* ---------- numeri in italiano ---------- */
+const NAMES_IT=['','mila','milioni','miliardi','bilioni','biliardi','trilioni','triliardi','quadrilioni','quadriliardi','quintilioni','quintiliardi','sestilioni','sestiliardi'];
+const NAMES_EN=['','thousand','million','billion','trillion','quadrillion','quintillion','sextillion','septillion','octillion','nonillion','decillion','undecillion','duodecillion'];
+function fmt(n){
+  if(!isFinite(n)) return '∞';
+  if(n<0) return '-'+fmt(-n);
+  const NAMES=L==='en'?NAMES_EN:NAMES_IT;
+  if(n<100 && n!==Math.floor(n)) return n.toLocaleString(LOC(),{maximumFractionDigits:1});
+  if(n<1e6) return Math.floor(n).toLocaleString(LOC());
+  const e=Math.floor(Math.log10(n)/3);
+  if(e>=NAMES.length) return L==='en'?n.toExponential(2):n.toExponential(2).replace('.',',');
+  const v=n/Math.pow(1000,e);
+  const fd=v<100?2:1;return v.toLocaleString(LOC(),{minimumFractionDigits:fd,maximumFractionDigits:fd})+' '+NAMES[e];
+}
+
+/* ---------- regole ---------- */
+function has(id){return !!S.ups[id]}
+function genMult(i){let m=1;for(let k=0;k<TIERS.length;k++) if(has('g'+i+'_'+k)) m*=2;return m}
+function globalMult(){
+  let m=1+legendPct()*S.legend;
+  if(art('cuoremonte')) m*=2;
+  for(const u of UPS) if(u.kind==='global'&&has(u.id)) m*=u.v;
+  return m;
+}
+function buffMult(kind){let m=1;const now=Date.now();for(const b of buffs) if(b.kind===kind&&b.until>now) m=Math.max(m,b.mult);return m}
+// stesso bonus di nuovo attivo: riparte la durata, non si somma
+function addBuff(kind,mult,ms,id){
+  const now=Date.now(),old=buffs.find(b=>b.id===id&&b.until>now);
+  if(old){old.until=now+ms;return}
+  buffs.push({kind,mult,until:now+ms,id});
+}
+function gl(id){return (S.gemLv&&S.gemLv[id])||0}
+function gemCost(u){return Math.ceil(u.base*Math.pow(u.g,gl(u.id)))}
+function fmtM(v){return v.toLocaleString(LOC(),{maximumFractionDigits:2})}
+function gemChance(){return (0.04+0.01*gl('occhio'))*(art('specchio')?2:1)}
+function totalOwned(){return S.owned.reduce((a,b)=>a+b,0)}
+function terrorMax(){return 100+20*gl('cuore')}
+function terrorRate(){return Math.min(1,0.1+0.005*totalOwned())*(1+0.2*gl('cuore'))*(art('calice')?1.5:1)}
+function gemRate(){return 0.0002*totalOwned()+0.002*S.owned[5]+0.02*S.owned[9]}
+function costMult(){return Math.pow(0.97,gl('mercante'))}
+function genRate(i){return GENS[i].prod*genMult(i)*globalMult()*Math.pow(1.1,gl('brama'))}
+function baseGps(){let t=0;for(let i=0;i<GENS.length;i++) t+=S.owned[i]*genRate(i);return t}
+function gps(){return baseGps()*buffMult('prod')}
+function perClick(){
+  let m=1,p=0;
+  for(const u of UPS){ if(!has(u.id)) continue; if(u.kind==='clickMult') m*=u.v; if(u.kind==='clickPct') p+=u.v; }
+  return (m*(1+legendPct()*S.legend)*(1+0.25*gl('artigli'))+baseGps()*p)*buffMult('click');
+}
+const R=1.15;
+function costOf(i,k){const b=GENS[i].cost*costMult()*Math.pow(R,S.owned[i]);return b*(Math.pow(R,k)-1)/(R-1)}
+function maxAfford(i){
+  const b=GENS[i].cost*costMult()*Math.pow(R,S.owned[i]);
+  return Math.max(0,Math.floor(Math.log(S.gold*(R-1)/b+1)/Math.log(R)));
+}
+function legendTotalFor(total){return Math.floor(Math.sqrt(total/1e10))}
+function legendPending(){return Math.max(0,legendTotalFor(S.totalAll)-S.legend)}
+function knightInterval(){let base=60+Math.random()*90;if(has('k1')) base/=2;if(art('lancia')) base/=1.25;return base*1000}
+
+function earn(n){S.gold+=n;S.totalRun+=n;S.totalAll+=n}
+
+/* ---------- azioni ---------- */
+function clickHoard(x,y){
+  const g=perClick();
+  earn(g);S.clicks++;
+  spawnCoins(x,y,Math.min(10,3+Math.floor(Math.log10(g+1))));
+  floatText(x,y,'+'+fmt(g));
+  if(Math.random()<gemChance()){S.gems++;floatText(x+30,y-26,t('f_gem1'),'gem')}
+  hint.style.opacity='0';
+}
+// una zampata automatica della coda: niente testo, solo una moneta
+function autoTap(){
+  const g=perClick();earn(g);
+  const gem=Math.random()<gemChance()/2; if(gem) S.gems++;
+  if(W>0&&!document.hidden){
+    const x=W*(0.15+Math.random()*0.7),y=H-heightAt(x)*0.8;
+    if(!reduce) spawnCoins(x,y,1);
+    floatText(x,y,'+'+fmt(g),'tail');
+    if(gem) floatText(x+24,y-20,t('f_gem1'),'gem');
+  }
+}
+function buyAuto(){
+  if(S.auto>=AUTO_MAX||autoCost()>S.gold) return;
+  S.gold-=autoCost();S.auto++;
+  renderShop(true);
+}
+function buyGem(id){
+  const u=GEMUPS.find(x=>x.id===id);
+  if(gl(id)>=u.max||gemCost(u)>S.gems) return;
+  S.gems-=gemCost(u);S.gemLv[id]=gl(id)+1;
+  renderShop(true);
+}
+function buyArt(id){
+  const a=ARTS.find(x=>x.id===id);
+  if(art(id)||a.cost>S.relics) return;
+  S.relics-=a.cost;S.arts[id]=true;
+  showToast(nm(a)+': '+ds(a));
+  renderShop(true);
+}
+function usePower(id){
+  const p=POWERS.find(x=>x.id===id);
+  if(S.terror<p.cost) return;
+  if(id==='sfida'&&knight) return;
+  S.terror-=p.cost;
+  if(id==='ruggito'){
+    const g=Math.max(baseGps()*60,perClick()*50);earn(g);
+    spawnCoins(W/2,H-pileH(),16);floatText(W/2,H-pileH()-20,'+'+fmt(g));
+    showToast(t('t_roar',fmt(g)));
+  }else if(id==='sfida'){
+    spawnKnight();showToast(t('t_challenge'));
+  }else{
+    addBuff('prod',3,45000,'soffio');
+    showToast(t('t_breath'));
+  }
+  renderPowers();
+}
+function buyGen(i){
+  let k = S.buyMode==='max'?maxAfford(i):+S.buyMode;
+  if(k<1) return;
+  const c=costOf(i,k);
+  if(c>S.gold) return;
+  S.gold-=c;S.owned[i]+=k;
+  const ms=Math.floor(S.owned[i]/RELIC_STEP),had=S.relicMs[i]||0;
+  if(ms>had){S.relics+=ms-had;S.relicMs[i]=ms;showToast(ms-had===1?t('t_relic1',ms*RELIC_STEP,nm(GENS[i]).toLowerCase()):t('t_relicN',ms*RELIC_STEP,nm(GENS[i]).toLowerCase(),ms-had))}
+  renderShop(true);
+}
+function buyUp(id){
+  const u=UP_BY_ID[id];
+  if(has(id)||u.cost>S.gold) return;
+  S.gold-=u.cost;S.ups[id]=true;
+  renderShop(true);
+}
+function goToSleep(){
+  const gain=legendPending();
+  if(gain<1) return;
+  const keep={lang:S.lang,relics:S.relics,arts:S.arts,gems:S.gems,gemLv:S.gemLv,totalAll:S.totalAll,legend:S.legend+gain,clicks:S.clicks,knights:S.knights,sleeps:S.sleeps+1,won:S.won,startedAt:S.startedAt,buyMode:S.buyMode};
+  S=Object.assign(fresh(),keep);
+  buffs.length=0;removeKnight();
+  save();renderShop(true);
+  showToast(t('t_wake',gain,Math.round(S.legend*legendPct()*100)));
+}
+
+/* ---------- cavalieri ---------- */
+function spawnKnight(){
+  const el=document.createElement('button');
+  el.className='knight';el.type='button';
+  el.setAttribute('aria-label',t('knight_aria'));
+  el.innerHTML='<svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c2"/><stop offset="1" stop-color="#d9a12b"/></linearGradient></defs>'+
+    '<path d="M32 4 L54 12 V30 C54 46 44 55 32 60 C20 55 10 46 10 30 V12 Z" fill="url(#kg)" stroke="#5a3a08" stroke-width="2.5"/>'+
+    '<path d="M32 12 V52 M18 26 H46" stroke="#a3271b" stroke-width="6" stroke-linecap="round"/></svg><span></span>';
+  el.querySelector('span').textContent=t('knight_label');
+  const cave=$('cave');
+  const w=cave.clientWidth,h=cave.clientHeight;
+  el.style.left=(20+Math.random()*Math.max(10,w-104))+'px';
+  el.style.top=(40+Math.random()*Math.max(10,h*0.45-40))+'px';
+  el.addEventListener('click',e=>{e.stopPropagation();hitKnight(el)});
+  cave.appendChild(el);
+  knight={el,until:Date.now()+13000*(art('lancia')?2:1)};
+}
+function removeKnight(){if(knight){knight.el.remove();knight=null}}
+function hitKnight(el){
+  const rect=el.getBoundingClientRect(),cr=$('cave').getBoundingClientRect();
+  const x=rect.left-cr.left+rect.width/2,y=rect.top-cr.top+rect.height/2;
+  removeKnight();S.knights++;
+  try{navigator.vibrate&&navigator.vibrate(30)}catch(e){}
+  nextKnightAt=Date.now()+knightInterval();
+  const len=has('k2')?2:1;
+  if(Math.random()<0.3){const n=2+Math.floor(Math.random()*5);S.gems+=n;floatText(x+30,y+26,t('f_gemN',n),'gem')}
+  if(Math.random()<0.5){S.relics++;floatText(x-30,y+46,t('f_relic'),'relic')}
+  const r=Math.random();
+  if(r<0.45){
+    const g=(Math.min(S.gold*0.15,baseGps()*900)+13+perClick()*13)*(art('mida')?2:1);
+    earn(g);spawnCoins(x,y,20);floatText(x,y,'+'+fmt(g));
+    showToast(t('t_chest',fmt(g)));
+  }else if(r<0.8){
+    addBuff('prod',7,30000*len,'furia');
+    floatText(x,y,t('f_fury'));
+    showToast(t('t_fury',30*len));
+  }else{
+    addBuff('click',15,13000*len,'fiamma');
+    floatText(x,y,t('f_flame'));
+    showToast(t('t_flame',13*len));
+  }
+}
+
+/* ---------- grafica della grotta ---------- */
+const canvas=$('canvas'),ctx=canvas.getContext('2d');
+const hint=$('hint');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  W=canvas.clientWidth;H=canvas.clientHeight;
+  canvas.width=Math.round(W*DPR);canvas.height=Math.round(H*DPR);
+}
+new ResizeObserver(resize).observe(canvas);
+// punti fissi per monete e gemme nel mucchio
+let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+const BITS=[];for(let i=0;i<520;i++){const t=rnd();BITS.push({u:rnd(),v:Math.pow(rnd(),0.8),r:rnd(),gem:t<0.09?Math.floor(rnd()*3)+1:0,tw:rnd()*6.28})}
+const GEMC=['','#52c7a5','#d8344f','#5a8ff0'];
+const coins=[];
+function spawnCoins(x,y,n){
+  if(reduce) n=Math.min(n,2);
+  for(let i=0;i<n;i++) coins.push({x,y,vx:(Math.random()-.5)*260,vy:-120-Math.random()*260,life:1,rot:Math.random()*6});
+}
+function floatText(x,y,t,cls){
+  const el=document.createElement('div');el.className='float'+(cls?' '+cls:'');el.textContent=t;
+  el.style.left=x+'px';el.style.top=(y-20)+'px';
+  $('cave').appendChild(el);setTimeout(()=>el.remove(),1000);
+}
+function fill(){ // 0..1 su scala logaritmica dell'oro accumulato
+  return Math.min(1,Math.log10(S.totalAll+1)/Math.log10(WORLD));
+}
+function pileH(){return H*(0.1+0.55*fill())}
+function heightAt(x){const d=(x-W/2)/(W*0.62);return pileH()*Math.max(0,1-d*d)}
+
+function drawDragon(t,ph){
+  const s=Math.min(W,H)/380;
+  const cx=W/2, top=H-ph;
+  const breathe=Math.sin(t/1400)*3*s;
+  // corpo arrotolato dietro il mucchio
+  ctx.save();
+  ctx.fillStyle='#0d0907';
+  ctx.strokeStyle='rgba(240,178,50,.28)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.ellipse(cx+40*s,top+18*s,W*0.33,(70*s)+breathe,0,Math.PI,0);ctx.fill();ctx.stroke();
+  // ala ripiegata
+  ctx.beginPath();
+  ctx.moveTo(cx+10*s,top-30*s+breathe);
+  ctx.lineTo(cx+70*s,top-120*s+breathe);
+  ctx.lineTo(cx+95*s,top-60*s);
+  ctx.lineTo(cx+140*s,top-100*s+breathe);
+  ctx.lineTo(cx+150*s,top-40*s);
+  ctx.lineTo(cx+200*s,top-60*s+breathe);
+  ctx.lineTo(cx+190*s,top-10*s);
+  ctx.closePath();ctx.fill();ctx.stroke();
+  // coda
+  ctx.beginPath();
+  ctx.moveTo(cx+W*0.3,top+10*s);
+  ctx.quadraticCurveTo(cx+W*0.42,top-40*s,cx+W*0.38,top-70*s);
+  ctx.lineTo(cx+W*0.40,top-90*s);ctx.lineTo(cx+W*0.35,top-72*s);
+  ctx.quadraticCurveTo(cx+W*0.38,top-35*s,cx+W*0.26,top+8*s);
+  ctx.fill();ctx.stroke();
+  ctx.restore();
+}
+function drawHead(t,ph){
+  const s=Math.min(W,H)/380;
+  const hx=W/2-95*s, hy=H-ph-8*s+Math.sin(t/1400)*2*s;
+  ctx.save();
+  ctx.fillStyle='#0d0907';ctx.strokeStyle='rgba(255,224,138,.35)';ctx.lineWidth=2;
+  // collo
+  ctx.beginPath();ctx.moveTo(hx+30*s,hy+10*s);ctx.quadraticCurveTo(hx+90*s,hy-30*s,hx+120*s,hy+20*s);ctx.lineTo(hx+90*s,hy+30*s);ctx.quadraticCurveTo(hx+70*s,hy+5*s,hx+20*s,hy+25*s);ctx.fill();ctx.stroke();
+  // corna
+  ctx.beginPath();ctx.moveTo(hx+28*s,hy-14*s);ctx.lineTo(hx+70*s,hy-42*s);ctx.lineTo(hx+40*s,hy-6*s);ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.moveTo(hx+18*s,hy-16*s);ctx.lineTo(hx+50*s,hy-50*s);ctx.lineTo(hx+28*s,hy-8*s);ctx.fill();ctx.stroke();
+  // testa e muso
+  ctx.beginPath();
+  ctx.moveTo(hx-48*s,hy+6*s);
+  ctx.quadraticCurveTo(hx-50*s,hy-8*s,hx-30*s,hy-10*s);
+  ctx.quadraticCurveTo(hx+5*s,hy-26*s,hx+38*s,hy-8*s);
+  ctx.quadraticCurveTo(hx+46*s,hy+12*s,hx+30*s,hy+20*s);
+  ctx.lineTo(hx-40*s,hy+18*s);
+  ctx.quadraticCurveTo(hx-52*s,hy+16*s,hx-48*s,hy+6*s);
+  ctx.fill();ctx.stroke();
+  // narice e brace
+  const furia=buffMult('prod')>1||buffMult('click')>1;
+  ctx.fillStyle=furia?'rgba(229,88,44,.9)':'rgba(229,88,44,.35)';
+  ctx.beginPath();ctx.arc(hx-40*s,hy+2*s,2.5*s,0,7);ctx.fill();
+  // occhio che sbatte le palpebre
+  const blink=(t%5200)<160?0.15:1;
+  const g=ctx.createRadialGradient(hx+8*s,hy-6*s,0,hx+8*s,hy-6*s,16*s);
+  g.addColorStop(0,'rgba(255,224,138,.7)');g.addColorStop(1,'rgba(255,224,138,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(hx+8*s,hy-6*s,16*s,0,7);ctx.fill();
+  ctx.fillStyle=furia?'#ff8a4a':'#ffd560';
+  ctx.beginPath();ctx.ellipse(hx+8*s,hy-6*s,7*s,4.5*s*blink,-0.15,0,7);ctx.fill();
+  ctx.fillStyle='#1a0d03';
+  ctx.beginPath();ctx.ellipse(hx+8*s,hy-6*s,1.4*s,3.8*s*blink,0,0,7);ctx.fill();
+  if(furia&&!reduce){ // fumo/fiamma dal muso
+    for(let i=0;i<6;i++){
+      const k=((t/400)+i/6)%1;
+      ctx.fillStyle=`rgba(${229},${88+120*k|0},44,${0.5*(1-k)})`;
+      ctx.beginPath();ctx.arc(hx-55*s-k*60*s,hy+4*s-k*16*s,(3+k*10)*s,0,7);ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function draw(t,dt){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  const f=fill(),ph=pileH();
+  // sfondo: roccia illuminata dal bagliore dell'oro
+  const bg=ctx.createRadialGradient(W/2,H,0,W/2,H,Math.max(W,H)*(0.6+0.5*f));
+  bg.addColorStop(0,`rgba(240,178,50,${0.18+0.25*f})`);bg.addColorStop(0.5,'rgba(60,35,15,.35)');bg.addColorStop(1,'#0b0807');
+  ctx.fillStyle='#0b0807';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+  // stalattiti
+  ctx.fillStyle='#070504';
+  for(let i=0;i<14;i++){const x=(i+0.3)*W/13.5,len=(18+((i*37)%5)*14)*(H/400);ctx.beginPath();ctx.moveTo(x-14,0);ctx.lineTo(x,len);ctx.lineTo(x+14,0);ctx.fill()}
+  drawDragon(t,ph);
+  // il mucchio
+  const grad=ctx.createLinearGradient(0,H-ph,0,H);
+  grad.addColorStop(0,'#ffe08a');grad.addColorStop(0.35,'#f0b232');grad.addColorStop(1,'#6b430c');
+  ctx.fillStyle=grad;
+  ctx.beginPath();ctx.moveTo(0,H);
+  for(let x=0;x<=W;x+=6) ctx.lineTo(x,H-heightAt(x)-(x>0&&x<W?Math.sin(x*0.13)*2:0));
+  ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+  // monete e gemme dentro il mucchio
+  const n=Math.floor(60+f*460);
+  for(let i=0;i<n;i++){
+    const b=BITS[i],x=b.u*W,hh=heightAt(x);if(hh<4) continue;
+    const y=H-b.v*hh*0.96;
+    const sz=(2.4+b.r*3.2)*(H/400);
+    if(b.gem){
+      ctx.fillStyle=GEMC[b.gem];
+      ctx.beginPath();ctx.moveTo(x,y-sz*1.2);ctx.lineTo(x+sz,y);ctx.lineTo(x,y+sz*1.2);ctx.lineTo(x-sz,y);ctx.fill();
+    }else{
+      ctx.fillStyle=b.r>0.5?'#ffd560':'#c98a1c';
+      ctx.beginPath();ctx.ellipse(x,y,sz*1.3,sz*0.6,0,0,7);ctx.fill();
+    }
+    if(!reduce){const tw=Math.sin(t/500+b.tw*10);if(tw>0.97){ctx.fillStyle='rgba(255,255,240,.9)';ctx.beginPath();ctx.arc(x,y-1,1.6,0,7);ctx.fill()}}
+  }
+  drawHead(t,ph);
+  // monete che volano
+  for(let i=coins.length-1;i>=0;i--){
+    const c=coins[i];c.vy+=700*dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.life-=dt*1.1;c.rot+=dt*10;
+    if(c.life<=0||c.y>H+10){coins.splice(i,1);continue}
+    ctx.fillStyle=`rgba(255,213,96,${Math.min(1,c.life*2)})`;
+    ctx.beginPath();ctx.ellipse(c.x,c.y,5,5*Math.abs(Math.cos(c.rot)),0,0,7);ctx.fill();
+  }
+}
+
+/* ---------- interfaccia ---------- */
+const genEls=[];
+const gemEls=[],artEls=[];
+function buildShop(){
+  const al=$('artList');al.innerHTML='';artEls.length=0;
+  ARTS.forEach(a=>{
+    const b=document.createElement('button');b.className='item artitem';b.type='button';
+    b.innerHTML='<span class="name"></span><span class="desc"></span><span class="meta"><span class="cost"></span></span>';
+    b.querySelector('.name').textContent=nm(a);b.querySelector('.desc').textContent=ds(a);
+    b.addEventListener('click',()=>buyArt(a.id));al.appendChild(b);artEls.push(b);
+  });
+  const gml=$('gemList');gml.innerHTML='';gemEls.length=0;
+  GEMUPS.forEach(u=>{
+    const b=document.createElement('button');b.className='item gemitem';b.type='button';
+    b.innerHTML='<span class="name"></span><span class="count"></span><span class="desc"></span><span class="meta"><span class="cost"></span></span>';
+    b.querySelector('.name').textContent=nm(u);
+    b.addEventListener('click',()=>buyGem(u.id));gml.appendChild(b);gemEls.push(b);
+  });
+  const pw=$('powerBtns');pw.innerHTML='';
+  POWERS.forEach(p=>{
+    const b=document.createElement('button');b.className='power';b.type='button';b.id='pw-'+p.id;
+    b.innerHTML='<b></b><small></small>';
+    b.querySelector('b').textContent=nm(p)+' · '+p.cost;
+    b.querySelector('small').textContent=ds(p);
+    b.addEventListener('click',()=>usePower(p.id));pw.appendChild(b);
+  });
+  const gl=$('genList');gl.innerHTML='';genEls.length=0;
+  GENS.forEach((g,i)=>{
+    const b=document.createElement('button');b.className='item';b.type='button';
+    b.innerHTML='<span class="name"></span><span class="count"></span><span class="desc"></span><span class="meta"><span class="cost"></span><span class="each"></span></span>';
+    b.addEventListener('click',()=>buyGen(i));
+    gl.appendChild(b);genEls.push(b);
+  });
+}
+let lastUpKey='';
+function renderShop(force){
+  // razzie
+  let shownLocked=false;
+  GENS.forEach((g,i)=>{
+    const b=genEls[i];
+    const visible=i===0||S.owned[i]>0||S.totalAll>=g.cost*0.5||S.owned[i-1]>0;
+    const unlocked=i===0||S.owned[i]>0||S.totalAll>=g.cost*0.5;
+    if(!visible){ if(!shownLocked&&S.owned[Math.max(0,i-1)]>0){} b.hidden=true; return; }
+    b.hidden=false;
+    const k=S.buyMode==='max'?Math.max(1,maxAfford(i)):+S.buyMode;
+    const c=costOf(i,k);
+    b.classList.toggle('locked',!unlocked);
+    b.querySelector('.name').textContent=unlocked?nm(g):'???';
+    b.querySelector('.desc').textContent=unlocked?ds(g):t('locked_desc');
+    b.querySelector('.count').textContent=S.owned[i]||'';
+    b.querySelector('.cost').textContent=k>1?t('ducats_for',fmt(c),k):t('ducats',fmt(c));
+    b.querySelector('.each').textContent=unlocked?t('each',fmt(genRate(i)))+(S.owned[i]?t('total',fmt(genRate(i)*S.owned[i])):''):'';
+    const can=unlocked&&c<=S.gold;
+    b.disabled=!can;b.classList.toggle('can',can);
+  });
+  // potenziamenti
+  const avail=UPS.filter(u=>!has(u.id)&&u.unlock(S)).sort((a,b)=>a.cost-b.cost);
+  const key=avail.map(u=>u.id).join(',')+'|'+Object.keys(S.ups).length+'|'+S.auto;
+  if(force||key!==lastUpKey){
+    lastUpKey=key;
+    const ul=$('upList');ul.innerHTML='';
+    if(S.auto<AUTO_MAX&&(S.auto>0||S.totalRun>=100)){
+      const b=document.createElement('button');b.className='item';b.type='button';b.dataset.id='auto';
+      b.innerHTML='<span class="name"></span><span class="count"></span><span class="desc"></span><span class="meta"><span class="cost"></span></span>';
+      b.querySelector('.name').textContent=t('auto_name');
+      b.querySelector('.count').textContent=S.auto||'';
+      b.querySelector('.desc').textContent=autoDesc();
+      b.querySelector('.cost').textContent=t('ducats',fmt(autoCost()));
+      b.addEventListener('click',buyAuto);ul.appendChild(b);
+    }
+    if(!avail.length){const p=document.createElement('p');p.className='empty';p.textContent=t('no_ups');ul.appendChild(p)}
+    avail.forEach(u=>{
+      const b=document.createElement('button');b.className='item';b.type='button';b.dataset.id=u.id;
+      b.innerHTML='<span class="name"></span><span class="desc"></span><span class="meta"><span class="cost"></span></span>';
+      b.querySelector('.name').textContent=nm(u);b.querySelector('.desc').textContent=upDesc(u);b.querySelector('.cost').textContent=t('ducats',fmt(u.cost));
+      b.addEventListener('click',()=>buyUp(u.id));ul.appendChild(b);
+    });
+    const ow=$('ownedUps');ow.innerHTML='';
+    const mine=UPS.filter(u=>has(u.id));
+    if(!mine.length){const s=document.createElement('span');s.textContent=t('none_yet');ow.appendChild(s)}
+    mine.forEach(u=>{const s=document.createElement('span');s.textContent=nm(u);s.title=upDesc(u);ow.appendChild(s)});
+  }
+  let anyUp=false;
+  $('upList').querySelectorAll('.item').forEach(b=>{if(b.dataset.id==='auto') b.querySelector('.desc').textContent=autoDesc();const c=b.dataset.id==='auto'?autoCost():UP_BY_ID[b.dataset.id].cost;const can=c<=S.gold;b.disabled=!can;b.classList.toggle('can',can);anyUp=anyUp||can});
+  $('upDot').hidden=!anyUp;
+  // gemme
+  let anyGem=false;
+  GEMUPS.forEach((u,i)=>{
+    const b=gemEls[i],l=gl(u.id),maxed=l>=u.max,c=gemCost(u);
+    b.querySelector('.count').textContent=l||'';
+    b.querySelector('.desc').textContent=(L==='en'&&u.descEn?u.descEn:u.desc)(l);
+    b.querySelector('.cost').textContent=maxed?t('max_level'):t(c===1?'gem1':'gemN',fmt(c));
+    const can=!maxed&&c<=S.gems;b.disabled=!can;b.classList.toggle('can',can);anyGem=anyGem||can;
+  });
+  $('gemDot').hidden=!anyGem;
+  // reliquie
+  let anyArt=false;
+  ARTS.forEach((a,i)=>{
+    const b=artEls[i],own=art(a.id);
+    b.classList.toggle('owned',own);
+    b.querySelector('.cost').textContent=own?t('in_cave'):t(a.cost===1?'relic1':'relicN',a.cost);
+    const can=!own&&a.cost<=S.relics;b.disabled=!can&&!own;b.classList.toggle('can',can);anyArt=anyArt||can;
+  });
+  $('relicDot').hidden=!anyArt;
+  $('relicHave').textContent=S.relics;
+  $('gemHave').textContent=fmt(Math.floor(S.gems));
+  // letargo
+  const pend=legendPending();
+  $('legendNow').textContent=fmt(S.legend);
+  $('legendBonus').textContent='+'+fmt(Math.round(S.legend*legendPct()*100))+'%';
+  $('legendGain').textContent=fmt(pend);
+  const nextTotal=Math.pow(legendTotalFor(S.totalAll)+1,2)*1e10;
+  $('legendNext').textContent=t('ducats',fmt(Math.max(0,nextTotal-S.totalAll)));
+  const sb=$('sleepBtn');
+  if(!sleepArmed){sb.disabled=pend<1;sb.textContent=pend<1?t('sleep_no'):t('sleep_yes',fmt(pend))}
+  $('sleepDot').hidden=pend<1;
+  $('stClicks').textContent=fmt(S.clicks);$('stKnights').textContent=fmt(S.knights);$('stSleeps').textContent=fmt(S.sleeps);
+}
+function renderPowers(){
+  const tm=terrorMax();
+  $('terrorTxt').textContent=Math.floor(S.terror)+' / '+tm;
+  $('terrorFill').style.width=(S.terror/tm*100)+'%';
+  $('gemsHud').textContent=fmt(Math.floor(S.gems));
+  $('relicHud').textContent=S.relics?t('relic_hud',S.relics):'';
+  POWERS.forEach(p=>{const b=$('pw-'+p.id);b.disabled=S.terror<p.cost||(p.id==='sfida'&&!!knight)});
+}
+function renderHud(){
+  renderPowers();
+  $('gold').textContent=fmt(S.gold);
+  $('gps').textContent=fmt(gps()+S.auto*perClick());
+  $('tailHud').hidden=!S.auto;
+  $('tailHud').textContent=t('tail_hud',fmt(S.auto*perClick()));
+  $('gpc').textContent=fmt(perClick());
+  const p=Math.min(1,S.totalAll/WORLD)*100;
+  $('pct').textContent=(p<0.001&&p>0?(L==='en'?'<0.001':'<0,001'):p.toLocaleString(LOC(),{maximumFractionDigits:p<1?3:1}))+'%';
+  $('barFill').style.width=Math.max(p,S.totalAll>0?0.4:0)+'%';
+  $('bar').setAttribute('aria-valuenow',p.toFixed(3));
+  $('hoardTotal').textContent=t('ducats',fmt(S.totalAll));
+  const now=Date.now();
+  const bl=$('buffs');bl.innerHTML='';
+  for(const b of buffs) if(b.until>now){const d=document.createElement('div');d.className='buff';d.textContent=t('buff_'+b.id)+' · '+Math.ceil((b.until-now)/1000)+' s';bl.appendChild(d)}
+  document.title=t('doc_title',fmt(S.gold));
+}
+
+let toastTimer=0;
+function showToast(t){const el=$('toast');el.textContent=t;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,4200)}
+function showModal(title,text,btn){ $('mTitle').textContent=title;$('mText').textContent=text;$('mBtn').textContent=btn||t('cont');$('modal').hidden=false;$('mBtn').focus()}
+$('mBtn').addEventListener('click',()=>$('modal').hidden=true);
+
+/* ---------- salvataggio ---------- */
+function save(){
+  S.lastTick=Date.now();
+  try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));$('saved').textContent=t('saved',new Date().toLocaleTimeString(LOC(),{hour:'2-digit',minute:'2-digit'}))}catch(e){$('saved').textContent=t('no_save')}
+}
+function load(data){
+  let d=data;
+  if(!d){try{d=JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch(e){d=null}}
+  if(!d||typeof d!=='object') return false;
+  S=Object.assign(fresh(),d);
+  S.owned=GENS.map((_,i)=>+(d.owned&&d.owned[i])||0);
+  if(!S.gemLv||typeof S.gemLv!=='object') S.gemLv={};
+  if(!S.arts||typeof S.arts!=='object') S.arts={};
+  if(!Array.isArray(S.relicMs)) S.relicMs=[];
+  return true;
+}
+function offline(){
+  const away=Math.min(8*3600,(Date.now()-(S.lastTick||Date.now()))/1000);
+  if(away>60){
+    S.terror=Math.min(terrorMax(),S.terror+terrorRate()*away);
+    const share=art('clessidra')?1:0.5;
+    S.gems+=gemRate()*away*share;
+    const g=baseGps()*away*share;
+    if(g>0){earn(g);showModal(t('back_title'),t('back_text',fmtTime(away),fmt(g)),t('back_btn'))}
+  }
+}
+function fmtTime(s){s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?h+' h '+m+' min':m?m+' min':s+' s'}
+
+/* ---------- comandi ---------- */
+let lastPointer=-1e9;
+// pointerdown: risposta immediata al tocco e più dita insieme valgono più zampate
+$('hoard').addEventListener('pointerdown',e=>{
+  if(e.button>0) return;
+  e.preventDefault();lastPointer=performance.now();
+  const r=canvas.getBoundingClientRect();
+  clickHoard(e.clientX-r.left,e.clientY-r.top);
+});
+$('hoard').addEventListener('contextmenu',e=>e.preventDefault());
+// tastiera (Invio / Spazio)
+$('hoard').addEventListener('click',e=>{ if(performance.now()-lastPointer>800) clickHoard(W/2,H-pileH()*0.6) });
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(o=>{o.setAttribute('aria-selected',o===t?'true':'false');$(o.getAttribute('aria-controls')).hidden=o!==t});
+}));
+document.querySelectorAll('.buymode button').forEach(b=>b.addEventListener('click',()=>{
+  S.buyMode=b.dataset.mode;
+  document.querySelectorAll('.buymode button').forEach(o=>o.setAttribute('aria-pressed',o===b?'true':'false'));
+  renderShop(true);
+}));
+let sleepArmed=false,sleepTimer=0;
+$('sleepBtn').addEventListener('click',()=>{
+  const sb=$('sleepBtn');
+  if(!sleepArmed){sleepArmed=true;sb.classList.add('warn');sb.textContent=t('sleep_sure');clearTimeout(sleepTimer);sleepTimer=setTimeout(()=>{sleepArmed=false;sb.classList.remove('warn');renderShop(true)},4000);return}
+  sleepArmed=false;sb.classList.remove('warn');goToSleep();
+});
+let resetArmed=false,resetTimer=0;
+$('resetBtn').addEventListener('click',()=>{
+  const rb=$('resetBtn');
+  if(!resetArmed){resetArmed=true;rb.textContent=t('reset_sure');clearTimeout(resetTimer);resetTimer=setTimeout(()=>{resetArmed=false;rb.textContent=t('reset')},4000);return}
+  resetArmed=false;rb.textContent=t('reset');
+  S=Object.assign(fresh(),{lang:S.lang});buffs.length=0;removeKnight();save();renderShop(true);showToast(t('t_reset'));
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden) save()});
+window.addEventListener('pagehide',save);
+
+/* ---------- ciclo principale ---------- */
+let autoAcc=0,lastFrame=performance.now(),lastUi=0,lastSave=Date.now(),lastWall=Date.now();
+function frame(now){
+  const wall=Date.now();
+  const dt=Math.min(8*3600,(wall-lastWall)/1000);lastWall=wall;
+  const fdt=Math.min(0.05,(now-lastFrame)/1000);lastFrame=now;
+  earn(gps()*dt);
+  S.terror=Math.min(terrorMax(),S.terror+terrorRate()*dt);
+  S.gems+=gemRate()*dt;
+  if(S.auto>0){
+    autoAcc+=S.auto*dt;
+    if(autoAcc>20){const n=Math.floor(autoAcc);earn(perClick()*n);S.gems+=n*gemChance()/2;autoAcc-=n}
+    while(autoAcc>=1){autoAcc--;autoTap()}
+  }
+  for(let i=buffs.length-1;i>=0;i--) if(buffs[i].until<wall) buffs.splice(i,1);
+  if(!knight&&wall>=nextKnightAt) spawnKnight();
+  if(knight&&wall>knight.until){removeKnight();nextKnightAt=wall+knightInterval()}
+  if(!S.won&&S.totalAll>=WORLD){S.won=true;save();showModal(t('win_title'),t('win_text',fmt(S.totalAll)),t('win_btn'))}
+  if(W>0) draw(now,fdt);
+  if(now-lastUi>100){renderHud();renderShop(false);lastUi=now}
+  if(wall-lastSave>10000){save();lastSave=wall}
+  requestAnimationFrame(frame);
+}
+
+function applyLang(){
+  document.documentElement.lang=L;
+  document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));
+  document.querySelectorAll('[data-i18n-html]').forEach(el=>el.innerHTML=t(el.dataset.i18nHtml));
+  document.querySelectorAll('[data-i18n-aria]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.i18nAria)));
+  document.querySelectorAll('.lang button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.lang===L?'true':'false'));
+  $('resetBtn').textContent=t('reset');
+  if(knight){knight.el.querySelector('span').textContent=t('knight_label');knight.el.setAttribute('aria-label',t('knight_aria'))}
+  buildShop();lastUpKey='';renderHud();renderShop(true);
+}
+document.querySelectorAll('.lang button').forEach(b=>b.addEventListener('click',()=>{L=b.dataset.lang;S.lang=L;applyLang();save()}));
+function start(data){
+  resize();
+  const loaded=load(data&&data.S);
+  L=S.lang||((navigator.language||'it').toLowerCase().startsWith('it')?'it':'en');
+  buildShop();applyLang();
+  if(loaded&&!(data&&data.S)) offline();
+  if(loaded&&S.clicks>0) hint.style.opacity='0';
+  document.querySelectorAll('.buymode button').forEach(o=>o.setAttribute('aria-pressed',o.dataset.mode===S.buyMode?'true':'false'));
+  nextKnightAt=Date.now()+(S.totalAll>0?knightInterval():45000);
+  lastWall=Date.now();
+  renderHud();renderShop(true);
+  requestAnimationFrame(frame);
+}
+window.claude?.hot?.snapshot?.(()=>({S:Object.assign({},S,{lastTick:Date.now()})}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+window.__drago={setLang:l=>{L=l;S.lang=l;applyLang()},buyArt,get S(){return S},fmt,gps,perClick,spawnKnight,usePower,buyGem};
+})();
+</script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}</script>
+</body></html>
